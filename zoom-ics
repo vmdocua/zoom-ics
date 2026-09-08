@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""Standalone entry point: runs zoom-ics without requiring `pip install`.
+
+Usage: ./zoom-ics.py --input schedule.xlsx --output schedule.ics
+"""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+
+from docsultant.zoom_ics.cli import main  # noqa: E402
+
+if __name__ == "__main__":
+    main()
