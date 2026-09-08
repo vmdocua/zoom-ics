@@ -16,6 +16,9 @@ _UID_NAMESPACE = uuid.UUID("2c6f9a0e-9b7b-4f0a-8f4b-3a2f2a2f5e7d")
 
 _UID_SLUG_RE = re.compile(r"[^a-z0-9]+")
 
+DEFAULT_INCLUDE_MODE = "zoom"
+SUPPORTED_INCLUDE_MODES: tuple[str, ...] = ("zoom", "active", "all")
+
 
 def _slug(*parts: str) -> str:
     joined = "-".join(parts).lower()
@@ -23,15 +26,37 @@ def _slug(*parts: str) -> str:
 
 
 def has_zoom_room(entry: ScheduleEntry, zoom_directory: dict[str, ZoomEntry]) -> bool:
-    """True if ``entry`` is eligible for inclusion: active, taught, and has a Zoom entry."""
+    """True if ``entry`` is active, taught, and its teacher has a Zoom entry."""
     return entry.is_active and entry.has_teacher and entry.teacher in zoom_directory
 
 
-def _event_description(entry: ScheduleEntry, zoom_entry: ZoomEntry) -> str:
-    return f"Teacher: {entry.teacher}\nCalendar: {entry.calendar}\n\n{zoom_entry.description}"
+def is_included(entry: ScheduleEntry, zoom_directory: dict[str, ZoomEntry], include_mode: str) -> bool:
+    """True if ``entry`` should become an event, per ``include_mode``:
+
+    - ``"zoom"``: active, taught, and has a Zoom room (see :func:`has_zoom_room`).
+    - ``"active"``: ``Active == "Y"``, regardless of teacher/Zoom room.
+    - ``"all"``: every row for the period, regardless of Active/Teacher.
+
+    :raises ValueError: if ``include_mode`` isn't a supported value.
+    """
+    if include_mode == "zoom":
+        return has_zoom_room(entry, zoom_directory)
+    if include_mode == "active":
+        return entry.is_active
+    if include_mode == "all":
+        return True
+    raise ValueError(f"Unsupported include mode {include_mode!r}; supported: {SUPPORTED_INCLUDE_MODES}")
 
 
-def build_event(entry: ScheduleEntry, event_date: date, zoom_entry: ZoomEntry, tz: tzinfo) -> Event:
+def _event_description(entry: ScheduleEntry, zoom_entry: ZoomEntry | None) -> str:
+    lines = [f"Teacher: {entry.teacher}", f"Calendar: {entry.calendar}"]
+    if zoom_entry is not None:
+        lines.append("")
+        lines.append(zoom_entry.description)
+    return "\n".join(lines)
+
+
+def build_event(entry: ScheduleEntry, event_date: date, zoom_entry: ZoomEntry | None, tz: tzinfo) -> Event:
     """Build a single VEVENT for ``entry`` occurring on ``event_date``."""
     dtstart = datetime.combine(event_date, entry.start_time, tzinfo=tz)
     dtend = datetime.combine(event_date, entry.end_time, tzinfo=tz)
@@ -53,6 +78,7 @@ def build_calendar(
     dates_by_weekday: dict[str, date],
     zoom_directory: dict[str, ZoomEntry],
     tz: tzinfo,
+    include_mode: str = DEFAULT_INCLUDE_MODE,
 ) -> Calendar:
     """Build the full .ics :class:`~icalendar.Calendar` for the given entries and period."""
     calendar_names = sorted({entry.calendar for entry in entries if entry.calendar})
@@ -62,12 +88,12 @@ def build_calendar(
     cal.add("x-wr-calname", ", ".join(calendar_names) or "Schedule")
 
     for entry in entries:
-        if not has_zoom_room(entry, zoom_directory):
+        if not is_included(entry, zoom_directory, include_mode):
             continue
         event_date = dates_by_weekday.get(entry.day)
         if event_date is None:
             continue
-        zoom_entry = zoom_directory[entry.teacher]
+        zoom_entry = zoom_directory.get(entry.teacher)
         cal.add_component(build_event(entry, event_date, zoom_entry, tz))
 
     cal.add_missing_timezones()

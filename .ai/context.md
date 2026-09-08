@@ -26,16 +26,21 @@ namespace later. Import everything as `docsultant.zoom_ics.<module>`.
   date's own weekday to itself (a single-entry dict), so only that day's rows are considered.
   This is the extension point for `next-week`/`month`/custom ranges later — add a branch here and
   a matching `click.Choice` value in `cli.py`.
-- `ics_builder.py` — filters entries via `has_zoom_room()` (active + teacher assigned + teacher
-  has a row in the Zoom sheet) and builds the `icalendar.Calendar`. There's no `LOCATION` field —
-  the teacher's raw Zoom description goes straight into `DESCRIPTION`. Event UIDs are
-  deterministic (`uuid5` over calendar+date+lesson+start time) so re-running the tool for the
+- `ics_builder.py` — `is_included()` dispatches on `include_mode` (`"zoom"` [default]: active +
+  teacher assigned + teacher has a Zoom row, via `has_zoom_room()`; `"active"`: `Active=="Y"`
+  only; `"all"`: everything) and `build_calendar()` filters entries through it. `zoom_directory`
+  is looked up with `.get()`, not `[...]`, since under `"active"`/`"all"` a row's teacher may have
+  no Zoom entry — `build_event()`'s `zoom_entry` parameter is `ZoomEntry | None`, and
+  `_event_description()` just omits the Zoom text when it's `None`. There's no `LOCATION` field
+  regardless — the teacher's raw Zoom description goes straight into `DESCRIPTION`. Event UIDs
+  are deterministic (`uuid5` over calendar+date+lesson+start time) so re-running the tool for the
   same week produces the same UIDs — re-importing into Google Calendar updates existing events
   instead of duplicating them.
 - `cli.py` — the `click` command (`zoom-ics` console script / `python -m docsultant.zoom_ics`).
-  When `--output` isn't given, `_default_output_path()` builds
-  `Zoom_Schedule_<calendars>_<Day|Week>_<date>.ics`, where `<calendars>` is computed by
-  re-applying the *same* period + `has_zoom_room()` eligibility filtering used by
+  `--include`/`-I` (`SUPPORTED_INCLUDE_MODES`/`DEFAULT_INCLUDE_MODE` from `ics_builder.py`) is
+  threaded into both `build_calendar()` and `_default_output_path()`. When `--output` isn't
+  given, `_default_output_path()` builds `Zoom_Schedule_<calendars>_<Day|Week>_<date>.ics`, where
+  `<calendars>` is computed by re-applying the *same* period + `is_included()` filtering used by
   `build_calendar()` — deliberately not the same (unfiltered, whole-workbook) set of calendars
   used for `X-WR-CALNAME` in `ics_builder.py`. If you change one filter, check whether the other
   needs to change too.
@@ -55,6 +60,10 @@ extension since it's meant to be invoked directly (`./zoom-ics ...`), not import
 - **Calendar column**: no `--calendar` filter in v1. All rows are included regardless of their
   `Calendar` value; each event carries its calendar in `CATEGORIES`, and `X-WR-CALNAME` is the
   comma-joined set of distinct calendar names found. A per-calendar filter may be added later.
+- **`--include`/`-I` naming**: option is named `--include` (values `zoom`/`active`/`all`), not
+  `--mode` — chosen over `--mode` for reading naturally as "which rows to include" without
+  needing to explain what it's a mode *of*. Short flag is `-I` (capital), since `-i` was already
+  `--input`.
 - **CI scope**: the GitHub Actions workflow (`.github/workflows/ci.yml`) is CI-only (lint/test on
   push+PR). It does not generate or publish `.ics` files on a schedule.
 - **No Zoom text parsing**: `ZoomEntry.description` is stored and passed through verbatim, never
@@ -72,9 +81,14 @@ extension since it's meant to be invoked directly (`./zoom-ics ...`), not import
 - **Reference workbook**: `tests/data/Schedule_DB_1.xlsx` is committed and mirrors the shape and
   lesson content of a real schedule, but with `Teacher A`/`B`/`C`/`D` in place of real teacher
   names, `Vasya` instead of a real `Calendar` value, and fake `zoom.example` credentials in place
-  of real Zoom links/IDs/passcodes. It's for human reference (linked from the README) and isn't
-  wired into `pytest` — the pytest fixtures in `tests/conftest.py` are the ones tests actually run
-  against. Keep it real-looking but never put real personal data in it.
+  of real Zoom links/IDs/passcodes. It's for human reference (linked from the README) *and* is
+  exercised by `tests/test_reference_workbook.py` as a smoke test on a real-shaped, multi-day,
+  Cyrillic-content file — complementary to the minimal synthetic fixture in `tests/conftest.py`
+  that the rest of the suite uses. That test checks calendar/teacher names against an *allowlist*
+  of the known placeholder values (`EXPECTED_CALENDARS`/`EXPECTED_TEACHERS`) rather than a
+  denylist of real names — a denylist would mean typing real personal data into a committed test
+  file to guard against it, which defeats the purpose. Keep the workbook real-looking but never
+  put real personal data in it (or in any test that reads it).
 
 ## Not yet built
 

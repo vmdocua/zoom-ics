@@ -28,14 +28,17 @@ with the teacher's Zoom invite text attached.
 
 ## Inclusion rule
 
-A `Schedule` row becomes a calendar event if and only if:
+Which `Schedule` rows become calendar events is controlled by `--include` (default `zoom`):
 
-1. `Active == "Y"`, and
-2. `Teacher` is present and not `n/a`, and
-3. `Teacher` has a row in the `Zoom` sheet.
+- `zoom` (default): `Active == "Y"`, and `Teacher` is present and not `n/a`, and `Teacher` has a
+  row in the `Zoom` sheet.
+- `active`: `Active == "Y"`, regardless of `Teacher`/Zoom row.
+- `all`: every row for the resolved period, regardless of `Active`/`Teacher`.
 
-Rows failing any condition are silently skipped (no warning) — this is expected steady-state
-behaviour (e.g. self-study lessons with `Teacher = n/a`), not an error.
+Rows failing the active mode's condition are silently skipped (no warning) — this is expected
+steady-state behaviour (e.g. self-study lessons with `Teacher = n/a` under `--include zoom`), not
+an error. When a row is included but its teacher has no `Zoom` sheet entry (possible under
+`active`/`all`), the event's `DESCRIPTION` just omits the Zoom invite text — nothing else changes.
 
 ## Period resolution
 
@@ -73,7 +76,7 @@ Zoom_Schedule_<calendars>_<Day|Week>_<date>.ics
 ```
 
 - `<calendars>`: the distinct `Calendar` values of the events actually included in this run
-  (same period + eligibility filtering as the events themselves — not every calendar mentioned
+  (same period + `--include` filtering as the events themselves — not every calendar mentioned
   anywhere in the workbook), sorted and dash-joined, e.g. `Vasya` or `Other-Vasya`. Falls back to
   `Schedule` if no events were included. Non-filename-safe characters are replaced with `_`.
 - `Day` for `current-day`, `Week` for `current-week` (see `PERIOD_LABELS` in `period.py`).
@@ -84,7 +87,8 @@ Example: `Zoom_Schedule_Vasya_Day_2026-09-18.ics`.
 ## CLI
 
 ```
-zoom-ics --input SCHEDULE.xlsx [--output OUT.ics] [--period current-day|current-week] [--date YYYY-MM-DD]
+zoom-ics --input SCHEDULE.xlsx [--output OUT.ics] [--period current-day|current-week] \
+    [--date YYYY-MM-DD] [--include zoom|active|all]
 ```
 
 Also runnable without installing via `./zoom-ics` (same options).

@@ -19,8 +19,9 @@ The source workbook has two sheets:
 - **Zoom** — columns `Teacher, Description`, where `Description` is a pasted Zoom invite. It's
   used verbatim in the generated event — not parsed for a URL/meeting ID/passcode.
 
-An event is generated only when its row is `Active=Y`, has a real `Teacher` (not `n/a`), and that
-teacher has a row in the Zoom sheet.
+By default (`--include zoom`), an event is generated only when its row is `Active=Y`, has a real
+`Teacher` (not `n/a`), and that teacher has a row in the Zoom sheet. `--include` can widen that:
+see the `--include` option below.
 
 See [tests/data/Schedule_DB_1.xlsx](tests/data/Schedule_DB_1.xlsx) for a worked example (fake
 teacher names and Zoom credentials):
@@ -73,6 +74,10 @@ Options:
   actually have events in this run, dash-joined.
 - `--period` — which period to generate: `current-day` (default, today only) or `current-week`.
 - `--date` — reference date (`YYYY-MM-DD`) used to resolve the period; defaults to today.
+- `--include, -I` — which rows to include (default `zoom`):
+  - `zoom` — `Active=Y`, has a `Teacher`, and that teacher has a row in the Zoom sheet.
+  - `active` — `Active=Y`, regardless of `Teacher`/Zoom room.
+  - `all` — every row for the period, regardless of `Active`/`Teacher`.
 
 Event times are written in the local machine's timezone.
 

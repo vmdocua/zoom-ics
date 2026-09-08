@@ -96,6 +96,66 @@ def test_cli_default_output_filename_for_current_week(
     assert f"Wrote 2 event(s) to {expected.name}" in result.output
 
 
+def test_cli_include_active_short_flag(sample_workbook_path: Path, tmp_path: Path):
+    output_path = tmp_path / "out.ics"
+    runner = CliRunner()
+
+    # -I active: Active=Y rows regardless of teacher/Zoom room, so "History" (inactive) is
+    # still excluded but "Art" (n/a teacher) and "Music" (no Zoom room) are now included.
+    result = runner.invoke(
+        main,
+        [
+            "--input",
+            str(sample_workbook_path),
+            "--output",
+            str(output_path),
+            "--period",
+            "current-week",
+            "--date",
+            "2026-09-08",
+            "-I",
+            "active",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote 4 event(s)" in result.output
+
+    content = output_path.read_text()
+    for summary in ("Math", "Art", "Music", "English"):
+        assert f"SUMMARY:{summary}" in content
+    assert "SUMMARY:History" not in content
+
+
+def test_cli_include_all(sample_workbook_path: Path, tmp_path: Path):
+    output_path = tmp_path / "out.ics"
+    runner = CliRunner()
+
+    # --include all: every row for the period, including the inactive "History" row.
+    result = runner.invoke(
+        main,
+        [
+            "--input",
+            str(sample_workbook_path),
+            "--output",
+            str(output_path),
+            "--period",
+            "current-week",
+            "--date",
+            "2026-09-08",
+            "--include",
+            "all",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote 5 event(s)" in result.output
+
+    content = output_path.read_text()
+    for summary in ("Math", "Art", "History", "Music", "English"):
+        assert f"SUMMARY:{summary}" in content
+
+
 def test_cli_requires_existing_input_file(tmp_path: Path):
     runner = CliRunner()
 
