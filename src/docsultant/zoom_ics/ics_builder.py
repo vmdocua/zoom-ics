@@ -14,7 +14,10 @@ from docsultant.zoom_ics.models import ScheduleEntry, ZoomEntry
 #: letting re-imports update existing events instead of duplicating them.
 _UID_NAMESPACE = uuid.UUID("2c6f9a0e-9b7b-4f0a-8f4b-3a2f2a2f5e7d")
 
-_UID_SLUG_RE = re.compile(r"[^a-z0-9]+")
+#: `\w` is Unicode-aware in Python 3, so this keeps non-ASCII letters (e.g. Cyrillic
+#: lesson names) instead of silently dropping them, which previously let unrelated
+#: lessons at the same time collapse onto the same UID.
+_UID_SLUG_RE = re.compile(r"[^\w]+", re.UNICODE)
 
 DEFAULT_INCLUDE_MODE = "zoom"
 SUPPORTED_INCLUDE_MODES: tuple[str, ...] = ("zoom", "active", "all")

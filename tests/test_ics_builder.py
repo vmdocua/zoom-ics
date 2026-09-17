@@ -151,6 +151,21 @@ def test_build_calendar_all_mode_includes_every_row_for_the_period():
     assert summaries == {"Math", "Art", "History", "Music"}
 
 
+def test_build_calendar_uids_differ_for_non_ascii_lessons_at_the_same_time():
+    entries = [
+        _entry(lesson="Літературне читання"),
+        _entry(lesson="Англійська мова"),
+    ]
+    dates_by_weekday = {"Mon": date(2026, 9, 7)}
+
+    calendar = build_calendar(entries, dates_by_weekday, ZOOM_DIRECTORY, TZ)
+    events = list(calendar.walk("VEVENT"))
+
+    assert len(events) == 2
+    uids = {str(event["uid"]) for event in events}
+    assert len(uids) == 2
+
+
 def test_build_calendar_event_description_omits_zoom_details_without_a_zoom_entry():
     entries = [_entry(lesson="History", teacher="n/a")]
     dates_by_weekday = {"Mon": date(2026, 9, 7)}
