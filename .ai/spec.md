@@ -47,10 +47,12 @@ reference date (`--date`, default: today, local time):
 
 - `current-day` (default): just the reference date. Only `Schedule` rows whose `Day` matches the
   reference date's own weekday are considered — i.e. "today's schedule."
+- `next-day`: the day after the reference date (rolls over week/month boundaries as needed).
 - `current-week`: the Monday–Sunday week containing the reference date. Each `Schedule` row's
   `Day` maps to the concrete date of that weekday in the resolved week.
-- Future: `next-week`, `month`, a custom date range. Not implemented yet; `period.py` is the
-  single place to add them.
+- `next-week`: the Monday–Sunday week immediately following `current-week`'s.
+- Future: `month`, a custom date range. Not implemented yet; `period.py` is the single place to
+  add them.
 
 ## Output
 
@@ -79,16 +81,20 @@ Zoom_Schedule_<calendars>_<Day|Week>_<date>.ics
   (same period + `--include` filtering as the events themselves — not every calendar mentioned
   anywhere in the workbook), sorted and dash-joined, e.g. `Vasya` or `Other-Vasya`. Falls back to
   `Schedule` if no events were included. Non-filename-safe characters are replaced with `_`.
-- `Day` for `current-day`, `Week` for `current-week` (see `PERIOD_LABELS` in `period.py`).
-- `<date>`: the resolved reference date, `YYYY-MM-DD`.
+- `Day` for `current-day`/`next-day`, `Week` for `current-week`/`next-week` (see
+  `PERIOD_LABELS` in `period.py`).
+- `<date>`: the earliest date in the *resolved* period (e.g. the Monday of the target week for
+  a week period), `YYYY-MM-DD` — not the raw `--date` value; for `next-day`/`next-week` those
+  differ.
 
 Example: `Zoom_Schedule_Vasya_Day_2026-09-18.ics`.
 
 ## CLI
 
 ```
-zoom-ics --input SCHEDULE.xlsx [--output OUT.ics] [--period current-day|current-week] \
-    [--date YYYY-MM-DD] [--include zoom|active|all]
+zoom-ics --input SCHEDULE.xlsx [--output OUT.ics] \
+    [--period|-p current-day|next-day|current-week|next-week] \
+    [--date|-d YYYY-MM-DD] [--include|-I zoom|active|all]
 ```
 
 Also runnable without installing via `./zoom-ics` (same options).
@@ -96,6 +102,7 @@ Also runnable without installing via `./zoom-ics` (same options).
 ## Explicitly out of scope for v1
 
 - A `--calendar NAME` filter (all calendars are included; may be added later).
-- Any period other than `current-day`/`current-week`.
+- Any period other than `current-day`/`next-day`/`current-week`/`next-week` (e.g. `month`, a
+  custom date range).
 - A UI beyond the CLI.
 - Publishing/hosting the generated `.ics` (e.g. a public URL for calendar subscription).

@@ -32,7 +32,6 @@ def _default_output_path(
     zoom_directory: dict[str, ZoomEntry],
     period: str,
     include_mode: str,
-    reference_date: date,
 ) -> Path:
     """Build "Zoom_Schedule_<calendars>_<Day|Week>_<date>.ics", e.g.
 
@@ -40,7 +39,10 @@ def _default_output_path(
     ``Zoom_Schedule_Other-Vasya_Week_2026-09-18.ics``. The calendar names are
     those of the events actually included in this run (same period +
     ``include_mode`` filtering as :func:`build_calendar`), not every calendar
-    mentioned anywhere in the workbook.
+    mentioned anywhere in the workbook. The date is the earliest date in the
+    *resolved* period (e.g. the Monday of the target week for
+    "current-week"/"next-week"), not the raw ``--date`` value -- for
+    "next-day"/"next-week" those differ.
     """
     calendar_names = sorted(
         {
@@ -53,7 +55,8 @@ def _default_output_path(
     )
     calendars_slug = "-".join(_sanitize_for_filename(name) for name in calendar_names) or "Schedule"
     period_label = PERIOD_LABELS[period]
-    return Path(f"Zoom_Schedule_{calendars_slug}_{period_label}_{reference_date.isoformat()}.ics")
+    anchor_date = min(dates_by_weekday.values())
+    return Path(f"Zoom_Schedule_{calendars_slug}_{period_label}_{anchor_date.isoformat()}.ics")
 
 
 @click.command()
@@ -78,6 +81,7 @@ def _default_output_path(
 )
 @click.option(
     "--period",
+    "-p",
     type=click.Choice(SUPPORTED_PERIODS),
     default=DEFAULT_PERIOD,
     show_default=True,
@@ -85,6 +89,7 @@ def _default_output_path(
 )
 @click.option(
     "--date",
+    "-d",
     "reference_date",
     type=click.DateTime(formats=["%Y-%m-%d"]),
     default=None,
@@ -119,9 +124,7 @@ def main(
     calendar = build_calendar(entries, dates_by_weekday, zoom_directory, tz, include_mode)
 
     if output_path is None:
-        output_path = _default_output_path(
-            entries, dates_by_weekday, zoom_directory, period, include_mode, ref_date
-        )
+        output_path = _default_output_path(entries, dates_by_weekday, zoom_directory, period, include_mode)
 
     output_path.write_bytes(calendar.to_ical())
 

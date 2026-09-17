@@ -71,9 +71,12 @@ Options:
   `Zoom_Schedule_<calendars>_<Day|Week>_<date>.ics` in the current directory, e.g.
   `Zoom_Schedule_Vasya_Day_2026-09-18.ics`, or `Zoom_Schedule_Other-Vasya_Week_2026-09-18.ics`
   when more than one `Calendar` value is included. `<calendars>` lists only the calendars that
-  actually have events in this run, dash-joined.
-- `--period` — which period to generate: `current-day` (default, today only) or `current-week`.
-- `--date` — reference date (`YYYY-MM-DD`) used to resolve the period; defaults to today.
+  actually have events in this run, dash-joined. `<date>` is the earliest date in the *resolved*
+  period (e.g. the Monday of the target week) — for `next-day`/`next-week` that's not the same as
+  the `--date` you passed in.
+- `--period, -p` — which period to generate: `current-day` (default, today only), `next-day`,
+  `current-week`, or `next-week`.
+- `--date, -d` — reference date (`YYYY-MM-DD`) used to resolve the period; defaults to today.
 - `--include, -I` — which rows to include (default `zoom`):
   - `zoom` — `Active=Y`, has a `Teacher`, and that teacher has a row in the Zoom sheet.
   - `active` — `Active=Y`, regardless of `Teacher`/Zoom room.

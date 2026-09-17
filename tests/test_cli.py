@@ -85,15 +85,85 @@ def test_cli_default_output_filename_for_current_week(
     runner = CliRunner()
 
     # The week of 2026-09-08 includes both "Vasya" (Math) and "Other" (English) calendars.
+    # The filename anchors on the resolved week's Monday (2026-09-07), not the given --date.
     result = runner.invoke(
         main,
         ["--input", str(sample_workbook_path), "--period", "current-week", "--date", "2026-09-08"],
     )
 
     assert result.exit_code == 0, result.output
-    expected = tmp_path / "Zoom_Schedule_Other-Vasya_Week_2026-09-08.ics"
+    expected = tmp_path / "Zoom_Schedule_Other-Vasya_Week_2026-09-07.ics"
     assert expected.exists()
     assert f"Wrote 2 event(s) to {expected.name}" in result.output
+
+
+def test_cli_period_and_date_short_flags(sample_workbook_path: Path, tmp_path: Path):
+    output_path = tmp_path / "out.ics"
+    runner = CliRunner()
+
+    # Same as test_cli_generates_ics_for_current_week, but using -p/-d instead of --period/--date.
+    result = runner.invoke(
+        main,
+        ["--input", str(sample_workbook_path), "--output", str(output_path), "-p", "current-week", "-d", "2026-09-08"],
+    )
+
+    assert result.exit_code == 0, result.output
+    content = output_path.read_text()
+    assert "SUMMARY:Math" in content
+    assert "SUMMARY:English" in content
+
+
+def test_cli_next_day_period(sample_workbook_path: Path, tmp_path: Path):
+    output_path = tmp_path / "out.ics"
+    runner = CliRunner()
+
+    # 2026-09-08 is a Tuesday; next-day resolves to Wednesday 2026-09-09, where only
+    # "English" is eligible.
+    result = runner.invoke(
+        main,
+        [
+            "--input",
+            str(sample_workbook_path),
+            "--output",
+            str(output_path),
+            "-p",
+            "next-day",
+            "-d",
+            "2026-09-08",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote 1 event(s)" in result.output
+
+    content = output_path.read_text()
+    assert "SUMMARY:English" in content
+    assert "SUMMARY:Math" not in content
+
+
+def test_cli_default_output_filename_for_next_day(sample_workbook_path: Path, tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["--input", str(sample_workbook_path), "-p", "next-day", "-d", "2026-09-08"])
+
+    assert result.exit_code == 0, result.output
+    # Anchors on the actual resolved date (2026-09-09), not the given --date (2026-09-08).
+    expected = tmp_path / "Zoom_Schedule_Other_Day_2026-09-09.ics"
+    assert expected.exists()
+
+
+def test_cli_default_output_filename_for_next_week(sample_workbook_path: Path, tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    result = runner.invoke(main, ["--input", str(sample_workbook_path), "-p", "next-week", "-d", "2026-09-08"])
+
+    assert result.exit_code == 0, result.output
+    assert "Wrote 2 event(s)" in result.output
+    # Anchors on next week's Monday (2026-09-14), not the given --date (2026-09-08).
+    expected = tmp_path / "Zoom_Schedule_Other-Vasya_Week_2026-09-14.ics"
+    assert expected.exists()
 
 
 def test_cli_include_active_short_flag(sample_workbook_path: Path, tmp_path: Path):

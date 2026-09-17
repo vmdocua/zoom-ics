@@ -47,7 +47,8 @@ def test_reference_workbook_current_week_via_cli(tmp_path, monkeypatch):
     )
 
     assert result.exit_code == 0, result.output
-    expected = tmp_path / "Zoom_Schedule_Vasya_Week_2026-09-08.ics"
+    # The filename anchors on the resolved week's Monday (2026-09-07), not the given --date.
+    expected = tmp_path / "Zoom_Schedule_Vasya_Week_2026-09-07.ics"
     assert expected.exists()
     assert f"Wrote 14 event(s) to {expected.name}" in result.output
 

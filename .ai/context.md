@@ -21,11 +21,11 @@ namespace later. Import everything as `docsultant.zoom_ics.<module>`.
 - `excel_reader.py` — reads the `Schedule` and `Zoom` sheets via openpyxl into the DTOs above.
   Rows are recognised as schedule rows purely by whether `Day` is a known weekday abbreviation —
   this is what lets a legend/notes block sit at the bottom of the sheet without special-casing it.
-- `period.py` — resolves a named period (`current-day` [default] or `current-week` so far) + a
-  reference date into a `{weekday_abbr: date}` mapping. `current-day` maps only the reference
-  date's own weekday to itself (a single-entry dict), so only that day's rows are considered.
-  This is the extension point for `next-week`/`month`/custom ranges later — add a branch here and
-  a matching `click.Choice` value in `cli.py`.
+- `period.py` — resolves a named period (`current-day` [default], `next-day`, `current-week`,
+  `next-week`) + a reference date into a `{weekday_abbr: date}` mapping. Day periods map only one
+  weekday to one date (a single-entry dict); week periods map all 7. This is the extension point
+  for `month`/custom ranges later — add a branch here, a label in `PERIOD_LABELS`, and a matching
+  `click.Choice` value in `cli.py`.
 - `ics_builder.py` — `is_included()` dispatches on `include_mode` (`"zoom"` [default]: active +
   teacher assigned + teacher has a Zoom row, via `has_zoom_room()`; `"active"`: `Active=="Y"`
   only; `"all"`: everything) and `build_calendar()` filters entries through it. `zoom_directory`
@@ -43,7 +43,9 @@ namespace later. Import everything as `docsultant.zoom_ics.<module>`.
   `<calendars>` is computed by re-applying the *same* period + `is_included()` filtering used by
   `build_calendar()` — deliberately not the same (unfiltered, whole-workbook) set of calendars
   used for `X-WR-CALNAME` in `ics_builder.py`. If you change one filter, check whether the other
-  needs to change too.
+  needs to change too. The filename's `<date>` is `min(dates_by_weekday.values())` — the earliest
+  *resolved* date, not the raw `--date`/`reference_date` input — which matters once `next-day`/
+  `next-week` exist: raw `--date` names a day in the *current* period, not the target one.
 
 `zoom-ics` at the repo root is a shebang (`#!/usr/bin/env python3`) wrapper script that adds
 `src/` to `sys.path` and calls the same CLI, for running without a `pip install`. It has no `.py`
@@ -64,6 +66,9 @@ extension since it's meant to be invoked directly (`./zoom-ics ...`), not import
   `--mode` — chosen over `--mode` for reading naturally as "which rows to include" without
   needing to explain what it's a mode *of*. Short flag is `-I` (capital), since `-i` was already
   `--input`.
+- **Short flags**: every option has one — `-i`/`-o`/`-p`/`-d`/`-I` for
+  `--input`/`--output`/`--period`/`--date`/`--include`. Keep this true for any new option: pick a
+  letter that doesn't collide (capitalize, as `-I` does, if the natural lowercase is taken).
 - **CI scope**: the GitHub Actions workflow (`.github/workflows/ci.yml`) is CI-only (lint/test on
   push+PR). It does not generate or publish `.ics` files on a schedule.
 - **No Zoom text parsing**: `ZoomEntry.description` is stored and passed through verbatim, never
@@ -92,6 +97,7 @@ extension since it's meant to be invoked directly (`./zoom-ics ...`), not import
 
 ## Not yet built
 
-- Periods other than `current-day`/`current-week` (next-week, month, custom range).
+- Periods other than `current-day`/`next-day`/`current-week`/`next-week` (e.g. month, custom
+  range).
 - Any UI beyond the CLI (mentioned as a "maybe" by the user, not committed to).
 - A `--calendar` row filter.
